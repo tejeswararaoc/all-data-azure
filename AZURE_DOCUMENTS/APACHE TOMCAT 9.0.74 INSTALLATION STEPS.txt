@@ -1,0 +1,27 @@
+
+sudo apt update
+sudo apt install default-jre 
+java -version 
+sudo groupadd tomcat  
+sudo useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat  
+cd /tmp
+wget -c  https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.74/bin/apache-tomcat-9.0.74.tar.gz  
+sudo mkdir /opt/tomcat
+sudo tar xzvf apache-tomcat-9.0.74.tar.gz -C /opt/tomcat --strip-components=1 
+ll
+cd /opt/tomcat 
+sudo chgrp -R tomcat /opt/tomcat 
+sudo chmod -R g+r conf
+sudo chmod g+x conf 
+sudo update-java-alternatives -l  
+sudo nano /etc/systemd/system/tomcat.service 
+sudo systemctl daemon-reload 
+sudo systemctl start tomcat 
+
+(NOTE:-sudo cd /opt/tomcat/conf/server.xml  here we need to change Conner PORT as 80  from 8080 ) 
+
+After Modification below is like:-
+ <Connector port="80" protocol="HTTP/1.1"
+               connectionTimeout="20000"
+               redirectPort="8080"
+               maxParameterCount="1000"

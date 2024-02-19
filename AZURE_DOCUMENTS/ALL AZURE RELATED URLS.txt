@@ -1,0 +1,6 @@
+1. https://learn.microsoft.com/en-us/azure/devops/?view=azure-devops 
+2.https://learn.microsoft.com/en-us/azure/devops/organizations/security/view-permissions?view=azure-devops&tabs=preview-page 
+3.https://learn.microsoft.com/en-us/azure/devops/organizations/security/view-permissions?view=azure-devops&tabs=preview-page
+4.About teams & Agile tools - Azure DevOps | Microsoft Learn 
+5.About access levels - Azure DevOps | Microsoft Learn   
+6.https://learn.microsoft.com/en-us/credentials/certifications/exams/az-104/practice/assessment?assessment-type=practice&assessmentId=21
