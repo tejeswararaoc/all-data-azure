@@ -1,0 +1,73 @@
+trigger:
+- master
+variables: 
+- group: "gameoflife"
+
+pool: practice-vm  
+stages: 
+- stage: build 
+  jobs: 
+
+steps:
+- task: Maven@3
+  inputs:
+    mavenPomFile: 'pom.xml'
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    goals: 'package' 
+- task: CopyFiles@2
+  displayName: 'Copy war'
+  inputs:
+    contents: '**/*war'
+    targetFolder: '$(Build.ArtifactStagingDirectory)'
+- task: PublishBuildArtifacts@1    
+  displayName: 'Publish Artifact: drop'
+  inputs:
+    PathtoPublish: '$(build.artifactstagingdirectory)'
+# - task: PublishBuildArtifacts@1
+#   inputs:
+#     PathtoPublish: '$(Build.ArtifactStagingDirectory)/target/*.war'
+#     ArtifactName: 'drop'
+# - script: |
+#     ls
+#   displayName: check location
+# publishLocation: 'Container'
+# - publish: '$(Build.ArtifactStagingDirectory)/jar'
+#   displayName: 'Publish jar'
+#   artifact: drop
+
+# - task: AzureFileCopy@4
+#   inputs:
+#     SourcePath: '$(Build.ArtifactStagingDirectory)/*.war'
+#     azureSubscription: 'Free Trial(bbd170d0-0c2d-4c56-865c-ae370593ff28)'
+#     Destination: 'AzureBlob'
+#     storage: 'cicdwars'
+#     ContainerName: 'tejawarfiles'   
+
+# - task: AzureCLI@2
+#   inputs:
+#     azureSubscription: 'mysvcazure'
+#     scriptType: 'bash'
+#     scriptLocation: 'inlineScript'
+#     inlineScript: |
+#       az storage copy -s $(system.defaultworkingdirectory)/*.war --destination-container 
+#       tejawarfiles  
+- script: |
+    az storage blob upload  --account-name cicdwars --account-key $(key) -f $(build.artifactstagingdirectory)/**/target/*.war --container-name $(cname) -n  golife-$(Build.BuildId).war  
+stage: Deploy 
+displayName: deploy to vm 
+jobs: 
+- deployment: VMDeploy
+  displayName: deploy to VM
+  environment: 'deploye to dev env'
+  name: dev
+  resourceType: virtualMachine  
+  strategy:                  
+    runOnce:
+      deploy:
+        steps:  
+- task: DownloadPipelineArtifact@2 
+  displayName: 'Download WAR artifacts'
+  inputs: 
+      artifactName: 'drop'
+      downloadPath: '$(System.ArtifactsDirectory)' 
