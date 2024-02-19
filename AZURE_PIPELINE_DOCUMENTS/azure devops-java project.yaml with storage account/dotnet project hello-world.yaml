@@ -1,0 +1,27 @@
+rigger: 
+-  master 
+pool: winserver
+stages: 
+- stage: Build 
+  jobs: 
+  - job: 
+    steps: 
+    # - script: echo "Hello World"  
+
+      - task: UseDotNet@2
+        displayName: 'dotnet install'
+        inputs:
+          packageType: 'sdk'
+          version: '3.x'
+          installationPath: $(Agent.ToolsDirectory)/dotnet
+          includePreviewVersions: true
+          # includePreviewVersions: false
+          # performMultiLevelLookup: true
+
+    
+    # - task: DotNetCoreCLI@2
+    #   displayName: Build
+    #   inputs:
+    #     command: build
+    #     projects: '**/*.csproj'
+    #     arguments: '--configuration $(buildConfiguration)' # Update this to match your need

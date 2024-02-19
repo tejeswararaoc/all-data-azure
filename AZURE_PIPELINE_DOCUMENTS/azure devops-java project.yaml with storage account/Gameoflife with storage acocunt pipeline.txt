@@ -1,0 +1,56 @@
+trigger:
+- master
+variables: 
+- group: "gameoflife"
+pool: practice-vm  
+stages: 
+- stage: "build"
+  jobs: 
+  - job:
+    steps:
+    - task: Maven@3
+      inputs:
+          mavenPomFile: 'pom.xml'
+          publishJUnitResults: true
+          testResultsFiles: '**/surefire-reports/TEST-*.xml'
+          goals: 'package' 
+    - task: CopyFiles@2
+      displayName: 'Copy war'
+      inputs:
+          contents: '**/*war'
+          targetFolder: '$(Build.ArtifactStagingDirectory)'
+    - task: PublishBuildArtifacts@1    
+      displayName: 'Publish Artifact: drop'
+      inputs:
+        PathtoPublish: '$(build.artifactstagingdirectory)'
+    - script: |   # this war file copy to azure storage account
+        az storage blob upload  --account-name cicdwars --account-key $(key) -f $(build.artifactstagingdirectory)/**/target/*.war --container-name $(cname) -n  $(date +%F)-golife-$(Build.BuildId).war  
+- stage: 'Deploytovm' 
+  displayName: 'Deploy to the dev environment' 
+  dependsOn: 'Build'
+  jobs: 
+  - deployment: VMDeploy
+    displayName: 'Deploy to VM'
+    environment:  
+      name: vmgroup 
+      resourceType: virtualMachine
+    strategy:                
+      runOnce:              
+        deploy:
+          steps:
+          - task: DownloadPipelineArtifact@2 
+            displayName: Download WAR artifacts
+            inputs: 
+              artifactName: 'drop'
+              downloadPath: '$(System.ArtifactsDirectory)'  
+                 
+          # - task: DownloadSecureFile@1
+          #   displayName: 'Download gameoflifewarfile' 
+          #   name: gameoflife
+          #   inputs:
+          #     secureFile: 'gameoflife.war'
+
+          - script: |
+              whoami
+               cd $(System.ArtifactsDirectory) && pwd && ls &&
+               sudo mv $(System.ArtifactsDirectory)/**/target/*.war /opt/tomcat/webapps/gameoflife.war

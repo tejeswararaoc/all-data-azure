@@ -1,0 +1,12 @@
+[Unit]
+Description=example systemd service unit swagger file.
+
+
+
+[Service]
+ExecStart=java -jar /home/opsuser01/swagger.jar
+
+
+
+[Install]
+WantedBy=multi-user.target

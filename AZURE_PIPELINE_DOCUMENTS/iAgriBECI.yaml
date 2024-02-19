@@ -1,0 +1,44 @@
+pool: 
+  vmImage: ubuntu-latest
+
+stages:
+ - stage: Build
+   jobs:
+    -job:
+      steps:
+        - task: Maven@3
+          inputs:
+            mavenPomFile: 'pom.xml'
+            goals: 'install'
+            publishJUnitResults: true
+            testResultsFiles: '**/surefire-reports/TEST-*.xml'
+            javaHomeOption: 'JDKVersion'
+            jdkVersionOption: '1.8'
+            mavenVersionOption: 'Default'
+            mavenOptions: '-Xmx3072m'
+            mavenAuthenticateFeed: true
+            effectivePomSkip: false
+            sonarQubeRunAnalysis: false
+        - task: MavenAuthenticate@0
+          inputs:
+            artifactsFeeds: 'iAgriwar_Kshema'
+            mavenServiceConnections: 'mavenfeedserviceconnection'
+        - task: CopyFiles@2
+          inputs:
+            targetFolder: '$(Build.ArtifactStagingDirectory)'    
+        
+        - task: PublishBuildArtifacts@1    
+          displayName: 'Publish Artifact: drop'
+          inputs:
+            PathtoPublish: '$(build.artifactstagingdirectory)'
+
+  - stage: Deploy
+    jobs:
+    - deployment: Deploy
+      displayName: 'Deploy to POCserver'
+      environment: 'iAgriPOCServer'
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+            - script: whoami

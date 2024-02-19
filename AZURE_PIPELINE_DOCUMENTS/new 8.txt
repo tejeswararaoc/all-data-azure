@@ -1,0 +1,64 @@
+pipeline for java 
+
+
+
+
+trigger:
+- sprint_3.0
+
+pool:
+  vmImage: ubuntu-20.04
+stages: 
+  - stage: build
+    jobs:
+      - job: 
+        steps:
+          - task: Maven@3
+            inputs:
+              mavenPomFile: 'iAgriOps/pom.xml'
+              goals: 'deploy'
+              publishJUnitResults: true
+              testResultsFiles: '**/surefire-reports/TEST-*.xml'
+              javaHomeOption: 'JDKVersion'
+              jdkVersionOption: '1.11'
+              mavenVersionOption: 'Default'
+              mavenOptions: '-Xmx3072m'
+              mavenAuthenticateFeed: true
+              effectivePomSkip: false
+              sonarQubeRunAnalysis: false
+          - task: CopyFiles@2
+            displayName: 'Copy Files to: $(build.artifactstagingdirectory)'
+            inputs:
+              SourceFolder: '$(system.defaultworkingdirectory)'
+              Contents: |
+               **/target/*.war
+              TargetFolder: '$(build.artifactstagingdirectory)'
+          
+          - task: PublishBuildArtifacts@1    
+            displayName: 'Publish Artifact: drop'
+            inputs:
+              PathtoPublish: '$(build.artifactstagingdirectory)'  
+
+  - stage: deploy 
+    displayName: 'Deployement Stage' 
+    jobs: 
+    - deployement: VMDeply 
+      displayName: Deploye to VM 
+      environment: 
+         name: dev01 
+         resourceName: ops-dev-vm01
+         resourceType: virtualMachine       
+      strategy: 
+        runOnce: 
+          deploy: 
+            steps: 
+              - task: DownloadPipelineArtifact@2
+                displayName: 'Download WAR artifacts'
+                inputs:
+                  artifactName: 'drop'
+                  downloadPath: '$(System.ArtifactsDirectory)'
+              - script: |
+                  whoami
+                  cd $(System.ArtifactsDirectory)
+                  sudo mv $(System.ArtifactsDirectory)/target/*.war /tomcat/iagriOps.war
+                  sudo systemctl restart tomcat.service 

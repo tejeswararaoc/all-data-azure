@@ -1,0 +1,79 @@
+trigger:
+  - sprint3.0_dev
+pool: iagri-buildserver
+# variables: 
+# - group: dev-azure_be_env
+stages: 
+  - stage: build
+    jobs:
+      - job: 
+        steps:
+          # - task: Bash@3
+          #   inputs:
+          #     targetType: 'inline'
+          #     # script: |
+          #     #     sed -i 's/\MY_CLIENTID\b/$(clientid)/g' $(Build.SourcesDirectory)/src/main/resources/azureDoc.env
+          #     #     sed -i 's/\MY_CLIENTSECRET\b/$(clientSecret)/g' $(Build.SourcesDirectory)/src/main/resources/azureDoc.env
+          #     #     sed -i 's|STORAGE_END_POINT|$(storageurl)|g' $(Build.SourcesDirectory)/src/main/resources/azureDoc.env
+          #     #     sed -i 's|DB_ENDPOINT|$(pgsqlurl)|g' $(Build.SourcesDirectory)/src/main/resources/azureDoc.env
+          #     #     sed -i 's/\DB_USERNAME\b/$(dbusername)/g' $(Build.SourcesDirectory)/src/main/resources/azureDoc.env
+          #     #     sed -i 's/\DB_PASSWORD\b/$(dbpassword)/g' $(Build.SourcesDirectory)/src/main/resources/azureDoc.env
+          - task: Maven@3
+            inputs:
+              mavenPomFile: 'pom.xml'
+              publishJUnitResults: true
+              testResultsFiles: '**/surefire-reports/TEST-*.xml'
+              javaHomeOption: 'Path'
+              jdkDirectory: '/usr/lib/jvm/java-11-openjdk-amd64'
+              mavenVersionOption: 'Path'
+              mavenDirectory: '/usr/share/maven'
+              mavenSetM2Home: false
+              mavenAuthenticateFeed: false
+              effectivePomSkip: true
+              sonarQubeRunAnalysis: false
+            displayName: "Building the cce backend "
+         
+          - task: CopyFiles@2
+            displayName: 'Copy Files to: staging directory'
+            inputs:
+              SourceFolder: '$(system.defaultworkingdirectory)'
+              Contents: |
+               **/target/*.war
+              TargetFolder: '$(build.artifactstagingdirectory)'
+          # - script: |
+          #     mkdir "$(date +"%d-%m-%Y")"
+          #     cp $(system.defaultworkingdirectory)/target/*.war $(system.defaultworkingdirectory)/$(date +"%d-%m-%Y")
+          #     echo "Build.BuildId $(Build.BuildId)"
+          #     echo "Build.BuildNumber $(Build.BuildNumber)"
+          #     echo "Environment.Name $(Environment.Name)"
+          #     echo "Environment.ResourceName $(Environment.ResourceName)"
+          #     pwd
+          #     cd $(system.defaultworkingdirectory)/$(date +"%d-%m-%Y")
+          #     ls
+          - task: PublishBuildArtifacts@1    
+            displayName: 'Publish Artifact: drop'
+            inputs:
+              PathtoPublish: '$(build.artifactstagingdirectory)' 
+  - stage: Deploy
+    displayName: 'Deployment Stage'
+    jobs:
+    - deployment: VMDeploy
+      displayName: Deploy to VM
+      environment: 
+        name: cce
+        resourceName: ops-dev-vm01
+        resourceType: virtualMachine
+      strategy:
+        runOnce:
+          deploy:   
+            steps:
+              - task: DownloadPipelineArtifact@2
+                displayName: 'Download WAR artifacts'
+                inputs:
+                  artifactName: 'drop'
+                  downloadPath: '$(System.ArtifactsDirectory)'
+              - script: |
+                  whoami
+                   cd $(System.ArtifactsDirectory)
+                   sudo mv $(System.ArtifactsDirectory)/target/*.war /opt/tomcat/webapps/cceops.war 
+                   sudo systemctl restart tomcat.service
