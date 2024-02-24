@@ -1,0 +1,67 @@
+trigger:
+- master
+pool: tejapool
+stages:
+- stage: build
+  displayName: Build
+  jobs:
+  - job:
+    steps:
+    - task: Maven@4
+      inputs:
+        mavenPomFile: 'pom.xml'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        javaHomeOption: 'JDKVersion'
+        mavenVersionOption: 'Default'
+        mavenAuthenticateFeed: false
+        effectivePomSkip: false
+        sonarQubeRunAnalysis: false
+    - task: CopyFiles@2
+      inputs:
+        SourceFolder: '$(agent.builddirectory)'
+        Contents: '**/target/*.war'
+        TargetFolder: '$(build.artifactstagingdirectory)'
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+    - task: CopyFiles@2 
+      displayName: 'copy files to build artifactory'
+      inputs: 
+        SourceFolder: '$(system.defaultworkingdirectory)'
+        Contents: '**/target/*.war'
+        TargetFolder: '$(build.artifactstagingdirectory)'
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: drop 
+
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        source: 'current'
+        artifact: 'drop'
+        path: '$(System.ArtifactsDirectory)'  
+    - task: AzureRmWebAppDeployment@4
+      inputs:
+        ConnectionType: 'AzureRM'
+        azureSubscription: 'myshuttleserviceconnection'
+        appType: 'webAppLinux'
+        WebAppName: 'teja-myshuttleprojectapp'
+        deployToSlotOrASE: true
+        ResourceGroupName: 'teja-rg1'
+        SlotName: 'production'
+        packageForLinux: '$(System.DefaultWorkingDirectory)/**/*.war'
+
+    - bash: |
+        whoami
+        cd $(System.ArtifactsDirectory)
+        ls
+        sudo mv $(System.ArtifactsDirectory)/*.war /opt/tomcat/webapps/myshuttledev.war
+        pwd
+        ls
+      displayName: 'Execute shell commands'    
+
+      

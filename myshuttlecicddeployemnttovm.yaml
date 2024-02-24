@@ -1,0 +1,56 @@
+trigger:
+- master
+
+pool: tejapool
+
+stages:
+- stage: build
+  displayName: Build
+  jobs:
+  - job:
+    steps:
+    - task: Maven@4
+      inputs:
+        mavenPomFile: 'pom.xml'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        javaHomeOption: 'JDKVersion'
+        mavenVersionOption: 'Default'
+        mavenAuthenticateFeed: false
+        effectivePomSkip: false
+        sonarQubeRunAnalysis: false
+    - task: CopyFiles@2
+      inputs:
+        SourceFolder: '$(agent.builddirectory)'
+        Contents: '**/target/*.war'
+        TargetFolder: '$(build.artifactstagingdirectory)'
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+- stage: DEPLOY
+  displayName: Deploy
+  jobs:
+  - deployment: VMDeploy
+    displayName: vm deploy
+    environment:
+      name: dev
+      resourceName: dep-vm2
+      resourceType: VirtualMachine
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download WAR artifacts'
+            inputs:
+              artifactName: 'drop'
+              downloadPath: '$(System.ArtifactsDirectory)'
+          - script: |
+              whoami
+                cd $(System.ArtifactsDirectory) 
+                sudo cp $(System.ArtifactsDirectory)/s/target/*.war /opt/tomcat/webapps/myshuttledev.war 
+                sleep 60 
+                sudo chown - R tomcat:tomcat /opt/tomcat
+                sudo systemctl restart tomcat
