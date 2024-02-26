@@ -1,0 +1,78 @@
+trigger: 
+- master 
+pool: tejapool 
+variables: 
+- group: myshuttle-storage-varibles
+stages:
+- stage: build
+  displayName: Build
+  jobs:
+  - job:
+    steps:
+    - task: Maven@4
+      inputs:
+        mavenPomFile: 'pom.xml'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        javaHomeOption: 'JDKVersion'
+        mavenVersionOption: 'Default'
+        mavenAuthenticateFeed: false
+        effectivePomSkip: false
+        sonarQubeRunAnalysis: false
+    - task: CopyFiles@2
+      inputs:
+        SourceFolder: '$(agent.builddirectory)'
+        Contents: '**/target/*.war'
+        TargetFolder: '$(build.artifactstagingdirectory)'
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+    - task: CopyFiles@2 
+      displayName: 'copy files to build artifactory'
+      inputs: 
+        SourceFolder: '$(system.defaultworkingdirectory)'
+        Contents: '**/target/*.war'
+        TargetFolder: '$(build.artifactstagingdirectory)'
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: drop  
+    - bash:  # this war file copy to azure storage account 
+        az storage blob upload  --account-name myapplogsstorageaccount --account-key $(key) -f $(build.artifactstagingdirectory)/**/target/*.war --container-name $(cname) -n $(date +%F)-myshuttle-$(Build.BuildId).war
+
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        source: 'current'
+        artifact: 'drop'
+        path: '$(System.ArtifactsDirectory)'  
+    - task: AzureRmWebAppDeployment@4
+      inputs:
+        ConnectionType: 'AzureRM'
+        azureSubscription: 'myshuttleserviceconnection'
+        appType: 'webAppLinux'
+        WebAppName: 'teja-myshuttleprojectapp'
+        deployToSlotOrASE: true
+        ResourceGroupName: 'teja-rg1'
+        SlotName: 'production'
+        packageForLinux: '$(System.DefaultWorkingDirectory)/**/*.war'
+
+    - bash: |
+        whoami
+        cd $(System.ArtifactsDirectory)
+        ls
+        sudo mv $(System.ArtifactsDirectory)/*.war /opt/tomcat/webapps/myshuttledev.war
+        pwd
+        ls
+      displayName: 'Execute shell commands'
+        #packageForLinux: '$(Pipeline.Workspace)/drop/**/gameoflife-web/target/.war' 
+        # appSettings: -CATALINA_OPTS "-Dfoo=bar"
+        # - script: |
+        #   # whoami
+        #   # cd $(System.ArtifactsDirectory) 
+        #   # ls
+        #   # #sudo mv $(System.ArtifactsDirectory)/**/*.war /opt/tomcat/webapps/gameoflife.war  
+        #   # pwd 
+        #   ## ls
