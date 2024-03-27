@@ -1,0 +1,29 @@
+https://learn.microsoft.com/en-us/azure/aks/intro-kubernetes  
+
+https://learn.microsoft.com/en-us/azure/aks/best-practices 
+
+read://https_learn.microsoft.com/?url=https%3A%2F%2Flearn.microsoft.com%2Fen-us%2Fazure%2Faks%2Fconcepts-clusters-workloads 
+
+https://kubernetes.io/docs/concepts/workloads/pods/ 
+
+
+
+https://github.com/starkfell/100DaysOfIaC/blob/master/articles/custom-self-hosted-build-agent-script-linux-vm  
+
+https://github.com/starkfell/100DaysOfIaC/blob/master/articles/day.35.building.a.practical.yaml.pipeline.part.1.md#create-a-repo-in-azure-devops-for-the-build-pipeline 
+
+https://www.letsdevops.net/post/letsdevops-complete-guide-to-learn-and-setup-yaml-pipeline-in-azure-devops  
+
+https://github.com/microsoft/azure-pipelines-tasks/releases  
+
+https://www.coachdevops.com/  for dvops  
+
+https://www.azuredevopslabs.com/labs/vstsextend/docker/  azure cicd  
+
+
+https://spacelift.io/blog/kubernetes-cheat-sheet (kubernets cheat sheet) 
+
+https://kubernetes.io/docs/reference/kubectl/quick-reference/ (kubernet commands) 
+https://www.azuredevopslabs.com/labs/vstsextend/docker/   for lab all portal code
+
+

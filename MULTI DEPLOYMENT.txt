@@ -1,0 +1,159 @@
+trigger:
+  - spring4.0_dev
+pool: iagri-buildserver
+stages: 
+  - stage: build
+    jobs:
+      - job: 
+        steps:
+          - bash: |
+              set -e
+              export JAVA_HOME="/usr/lib/jvm/java-11-openjdk-amd64"
+              export PATH=$JAVA_HOME/bin:$PATH
+              mvn -v 
+              cd /home/azureuser/myagent/_work/3/s && mvn package
+          # - task: Maven@3
+          #   inputs:
+          #     mavenPomFile: 'pom.xml'
+          #     goals: 'package'
+          #     publishJUnitResults: true
+          #     testResultsFiles: '**/surefire-reports/TEST-*.xml'
+          #     effectivePomSkip: true
+          #     sonarQubeRunAnalysis: false
+          #   displayName: "BUilding the iAgri backEnd code"
+          - task: PublishTestResults@2
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '**/surefire-reports/TEST-*.xml'
+          - task: CopyFiles@2
+            displayName: 'Copy Files to: $(build.artifactstagingdirectory)'
+            inputs:
+              SourceFolder: '$(system.defaultworkingdirectory)'
+              Contents: |
+               **/target/*.war
+              TargetFolder: '$(build.artifactstagingdirectory)'
+          - script: |
+              mv $(system.defaultworkingdirectory)/target/*.war  $(system.defaultworkingdirectory)/$(date +"%d-%m-%Y")-iAgri.war
+              # mkdir "$(date +"%d-%m-%Y")"
+              # cp $(system.defaultworkingdirectory)/target/*.war $(system.defaultworkingdirectory)/$(date +"%d-%m-%Y")
+              # echo "Build.BuildId $(Build.BuildId)"
+              # echo "Build.BuildNumber $(Build.BuildNumber)"
+              # echo "Environment.Name $(Environment.Name)"
+              # echo "Environment.ResourceName $(Environment.ResourceName)"
+              # pwd
+              # cd $(system.defaultworkingdirectory)/$(date +"%d-%m-%Y")
+                  ls
+          # - task: AzureFileCopy@5
+          #   displayName: 'Copy artifact to container storage account'
+          #   inputs:
+          #       SourcePath: '$(system.defaultworkingdirectory)/target/*.war'
+          #       azureSubscription: 
+          #       Destination: 'AzureBlob'
+          #       storage: 'containerforprojects'
+          #       ContainerName: 'azurestorage'
+          # - task: AzureCLI@2
+          #   inputs:
+          #     azureSubscription: 'DevSVC'
+          #     scriptType: 'bash'
+          #     scriptLocation: 'inlineScript'
+          #     inlineScript: |
+          #       az storage copy -s $(system.defaultworkingdirectory)/target/*.war --destination-container azurestorage --account-name containerforprojects
+              
+          - task: PublishBuildArtifacts@1    
+            displayName: 'Publish Artifact: drop'
+            inputs:
+              PathtoPublish: '$(build.artifactstagingdirectory)' 
+  - stage: Deploy_to_dev
+    condition: eq(variables['Build.SourceBranch'], 'refs/heads/spring4.0_dev')
+    displayName: 'Deployment Stage'
+    jobs:
+    - deployment: VMDeploy
+      displayName: Deploy to VM
+      environment: 
+        name: dev01
+        resourceName: Prod01-vm-base
+        resourceType: virtualMachine
+      strategy:
+        runOnce:
+          deploy:   
+            steps:
+              - task: DownloadPipelineArtifact@2
+                displayName: 'Download WAR artifacts'
+                inputs:
+                  artifactName: 'drop'
+                  downloadPath: '$(System.ArtifactsDirectory)'
+              - task: DownloadSecureFile@1
+                displayName: 'Download iAgri.xml'
+                name: iAgri
+                inputs:
+                  secureFile: 'iAgri.xml'
+              - script: |
+                  whoami
+                   cd $(System.ArtifactsDirectory)
+                   sudo mv $(System.ArtifactsDirectory)/target/*.war /opt/tomcat/webapps/iAgri.war
+                   sleep 60
+                   sudo cp  $(Agent.TempDirectory)/iAgri.xml  /opt/tomcat/conf/Catalina/localhost/ 
+                   sleep 60 
+                   sudo rm -rf /opt/tomcat/webapps/iAgri/WEB-INF/lib/jackson-annotations-2.3.2.jar
+                   sudo rm -rf /opt/tomcat/webapps/iAgri/WEB-INF/lib/jersey-multipart-1.18.1.jar
+                   sudo rm -rf /opt/tomcat/webapps/iAgri/WEB-INF/lib/jersey-server-1.18.jar
+                   sudo rm -rf /opt/tomcat/webapps/iAgri/WEB-INF/lib/jersey-core-1.18.jar
+                   sudo rm -rf /opt/tomcat/webapps/iAgri/WEB-INF/lib/jackson-databind-2.3.2.jar
+                   sudo rm -rf /opt/tomcat/webapps/iAgri/WEB-INF/lib/jaxb-impl-2.1.13.jar
+                   sudo rm -rf /opt/tomcat/webapps/iAgri/WEB-INF/lib/jackson-core-2.3.2.jar
+                   sudo systemctl restart tomcat.service
+
+  - stage: deploytouatbasevm
+    pool: uat01
+    condition: eq(variables['Build.SourceBranch'], 'refs/heads/pipeline_test')
+    displayName: 'Deployment uat Stage'
+    jobs:
+      - job:   
+        steps:
+          - checkout: none
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download WAR artifacts'
+            inputs:
+              artifactName: 'drop'
+              downloadPath: '$(System.ArtifactsDirectory)'
+          - task: DownloadSecureFile@1
+            displayName: 'Download iAgri.xml'
+            name: iAgri
+            inputs:
+              secureFile: 'uat-iAgri.xml'
+          - task: CopyFilesOverSSH@0
+            inputs:
+              sshEndpoint: 'uatbasevm'
+              sourceFolder: '$(System.ArtifactsDirectory)/target/'
+              contents: '*.war'
+              targetFolder: '/home/azureuser/tmpdir/'
+              cleanTargetFolder: true
+              readyTimeout: '20000'
+          - task: CopyFilesOverSSH@0
+            inputs:
+              sshEndpoint: 'uatbasevm'
+              sourceFolder: '$(Agent.TempDirectory)'
+              contents: '*.xml'
+              targetFolder: '/home/azureuser/uatxml/'
+              cleanTargetFolder: true
+              readyTimeout: '20000'
+          - task: SSH@0
+            inputs:
+              sshEndpoint: 'uatbasevm'
+              runOptions: 'inline'
+              inline: |
+                set -e
+                whoami
+                sudo mv /home/azureuser/tmpdir/*.war /opt/tomcat/webapps/iAgri.war
+                sleep 60
+                sudo cp  /home/azureuser/uatxml/*.xml  /opt/tomcat/conf/Catalina/localhost/iAgri.xml
+                 sleep 60 
+                 sudo rm -rf /opt/tomcat/webapps/iAgri/WEB-INF/lib/jackson-annotations-2.3.2.jar
+                 sudo rm -rf /opt/tomcat/webapps/iAgri/WEB-INF/lib/jersey-multipart-1.18.1.jar
+                 sudo rm -rf /opt/tomcat/webapps/iAgri/WEB-INF/lib/jersey-server-1.18.jar
+                 sudo rm -rf /opt/tomcat/webapps/iAgri/WEB-INF/lib/jersey-core-1.18.jar
+                 sudo rm -rf /opt/tomcat/webapps/iAgri/WEB-INF/lib/jackson-databind-2.3.2.jar
+                 sudo rm -rf /opt/tomcat/webapps/iAgri/WEB-INF/lib/jaxb-impl-2.1.13.jar
+                 sudo rm -rf /opt/tomcat/webapps/iAgri/WEB-INF/lib/jackson-core-2.3.2.jar
+                 sudo systemctl restart tomcat.service
+              readyTimeout: '20000'

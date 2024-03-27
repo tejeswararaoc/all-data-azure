@@ -1,0 +1,42 @@
+1 First we need to install nginx in ubuntu refer below url:-
+sudo apt update
+sudo apt install nginx 
+
+2.sudo ufw app list 
+3.sudo ufw allow 'Nginx HTTP' 
+4.sudo ufw status 
+5.systemctl status nginx 
+6.http://your_server_ip 
+7.sudo systemctl stop nginx 
+8.sudo systemctl start nginx 
+9.sudo systemctl restart nginx 
+10.sudo systemctl reload nginx 
+11.sudo systemctl enable nginx 
+12.REfer this url:_ https://www.digitalocean.com/community/tutorials/how-to-install-nginx-on-ubuntu-20-04  
+
+SSL CErtification configuration follow the below url:-
+NGINX SSL Configuration Step by Step Details - Ubiq BI 
+
+configured below certificate details in below path:- 
+vi /etc/nginx/nginx.conf (addd below details in this file in server ) 
+
+ server {
+        listen 443 ssl;
+    server_name 4.188.184.42;
+
+    ssl_certificate /etc/nginx/ssl/kshema.crt;
+    ssl_certificate_key /etc/nginx/ssl/kshema.rsa;
+
+    location / {
+        proxy_pass http://4.188.184.42:8080;  # Assuming Tomcat is on the default port
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+   }
+ }
+
+}
+
+
