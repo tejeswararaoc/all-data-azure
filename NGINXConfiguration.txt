@@ -20,23 +20,76 @@ NGINX SSL Configuration Step by Step Details - Ubiq BI
 configured below certificate details in below path:- 
 vi /etc/nginx/nginx.conf (addd below details in this file in server ) 
 
- server {
+user  nginx;
+worker_processes  auto;
+
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    keepalive_timeout  65;
+
+    #include /etc/nginx/conf.d/*.conf;
+
+    server {
+        listen 80;
+        server_name _ 4.188.184.42;
+
+        location / {
+            # Add your default location directives here
+        }
+    }
+
+    server {
         listen 443 ssl;
+        server_name 4.188.184.42;
+
+        ssl_certificate /etc/nginx/ssl/kshema.crt;
+        ssl_certificate_key /etc/nginx/ssl/kshema.rsa;
+
+        location / {
+            # Add your HTTPS location directives here
+        }
+    }
+}   
+---------------------
+
+nano /etc/nginx/sites-available/ <--
+vi default <-- 
+
+server {
+    listen 443 ssl;
     server_name 4.188.184.42;
 
-    ssl_certificate /etc/nginx/ssl/kshema.crt;
-    ssl_certificate_key /etc/nginx/ssl/kshema.rsa;
+    ssl_certificate /path/to/your/certificate.pem;
+    ssl_certificate_key /path/to/your/private-key.pem;
 
     location / {
-        proxy_pass http://4.188.184.42:8080;  # Assuming Tomcat is on the default port
+        proxy_pass http://localhost:8080;  # Assuming Tomcat is on the default port
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-
-   }
- }
-
+    }
 }
+
+we have copy the above code and modify the port details also
+
 
 

@@ -1,0 +1,52 @@
+trigger: 
+  - master 
+variables: 
+- group: "gameoflife"
+pool: devserver 
+stages: 
+  - stage: Build 
+    jobs: 
+    - job: 
+      steps: 
+      - task: Maven@4 
+        inputs: 
+          mavenPomFile: 'pom.xml'
+          # mavenOptions: '-Xmx3072m'
+          goals: 'package'
+          # javaHomeOption: 'JDKVersion'
+          # jdkVersionOption: '1.8'
+          jdkArchitectureOption: 'x64'
+          publishJUnitResults: true
+          testResultsFiles: '**/TEST-*.xml'
+          
+      - task: CopyFiles@2 
+        displayName: 'copy files to build artifactory'
+        inputs: 
+          SourceFolder: '$(system.defaultworkingdirectory)'
+          Contents: '**/target/*.war'
+          TargetFolder: '$(build.artifactstagingdirectory)'
+      - task: PublishBuildArtifacts@1
+        inputs:
+          pathToPublish: '$(Build.ArtifactStagingDirectory)'
+          artifactName: drop 
+      - script: |  # this war file copy to azure storage account
+          az storage blob upload  --account-name warfilestore --account-key $(key) -f $(build.artifactstagingdirectory)/**/target/*.war --container-name $(cname) -n  $(date +%F)-golife-$(Build.BuildId).war    
+      
+      
+    # download the artifact drop from the previous job
+      - task: DownloadPipelineArtifact@2
+        inputs:
+          source: 'current'
+          artifact: 'drop'
+          path: '$(System.ArtifactsDirectory)'  
+      - task: AzureRmWebAppDeployment@4
+        inputs:
+          ConnectionType: 'AzureRM'
+          azureSubscription: 'appservicewebapp'
+          appType: 'webApp'
+          WebAppName: 'javaappliapp'
+          deployToSlotOrASE: true
+          ResourceGroupName: 'gopi-rg' 
+          SlotName: 'Dev'
+          packageForLinux: '$(System.DefaultWorkingDirectory)/**/*.war'
+
