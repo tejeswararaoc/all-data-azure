@@ -1,0 +1,12 @@
+sudo parted /dev/sdc --script mklabel gpt mkpart xfspart xfs 0% 100% 
+sudo mkfs.xfs /dev/sdc 
+sudo partprobe /dev/sdc 
+-------------------------above 3commands for disk format ------------
+sudo mkdir /datadrive4
+sudo fdisk -l 
+sudo mount /dev/sda /datadrive4 
+sudo mkfs.ext4 /dev/sdc1 
+lsblk
+----------------
+unmount: 
+sudo umount datadrive4
