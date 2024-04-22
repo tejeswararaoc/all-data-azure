@@ -1,0 +1,55 @@
+trigger:
+  - QA
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: build
+    jobs:
+      - job:
+        steps:
+          - task: Maven@4
+            inputs:
+              mavenPomFile: 'CMS_LOGIN_TEST/dummybot-example-saml-master/pom.xml' 
+              #mavenPomFile: 'Springboot_Rest_API/spring-boot-3-rest-api-example-master/pom.xml'
+              mavenOptions: '-Xmx3072m'
+              javaHomeOption: 'JDKVersion'
+              jdkVersionOption: '21'
+              jdkArchitectureOption: 'x64'
+              publishJUnitResults: true
+              testResultsFiles: '**/surefire-reports/TEST-*.xml'
+              goals: 'package'
+          - task: PublishTestResults@2
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '**/surefire-reports/TEST-*.xml'
+          - task: CopyFiles@2
+            inputs:
+              SourceFolder: '$(system.defaultworkingdirectory)'
+              Contents: '**/target/*.jar'
+              TargetFolder: '$(build.artifactstagingdirectory)'
+          - task: PublishBuildArtifacts@1
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+              ArtifactName: 'drop'
+              publishLocation: 'Container' 
+
+  - stage: depoly
+    jobs:
+      - job:
+        steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              buildType: 'current'
+              artifactName: 'drop'
+              targetPath: '$(Build.ArtifactStagingDirectory)'
+          - task: AzureRmWebAppDeployment@4
+            inputs:
+              ConnectionType: 'AzureRM'
+              azureSubscription: 'vamcmsdevappserviceconnection' #(this is service connection name)
+              appType: 'webAppLinux'
+              WebAppName: 'vamcmsdev01app'
+              packageForLinux: '$(Build.ArtifactStagingDirectory)/**/*.jar'
+              RuntimeStack: 'JAVA|17-java17'
+              StartupCommand: 'java -jar /home/site/wwwroot/spring-boot-3-rest-api-example-0.0.1-SNAPSHOT.jar'
