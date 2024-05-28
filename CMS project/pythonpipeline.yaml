@@ -1,0 +1,78 @@
+trigger:
+  - DEV
+pool: iagri-buildserver
+variables: 
+- group: dev-env
+stages: 
+  - stage: build
+    jobs:
+      - job: build_in_python_core_PMFBY
+        steps:       
+        - bash: |
+            cd $(Build.SourcesDirectory) 
+            pwd 
+            cd PMFBY
+            sudo python3 -m venv .PMFBY
+            source .PMFBY/bin/activate 
+            sudo pip3 install -r requirements.txt 
+            deactivate
+          displayName: 'Install dependencies'  
+        - task: CopyFiles@2
+          displayName: 'Copy scripts'
+          inputs:
+            contents: 'PMFBY/**'
+            targetFolder: '$(Build.ArtifactStagingDirectory)'
+
+        - publish: '$(Build.ArtifactStagingDirectory)/PMFBY'
+          displayName: 'Publish script'
+          artifact: PMFBY
+        
+        - task: PublishBuildArtifacts@1
+          inputs:
+            PathtoPublish: '$(Build.ArtifactStagingDirectory)/PMFBY'
+            ArtifactName: 'drop'
+            publishLocation: 'Container'
+            StoreAsTar: true 
+        - bash: |
+            cd $(Build.SourcesDirectory)
+            pwd 
+            ls
+            sudo rm -rf *
+          displayName: 'Remove project folder' 
+  
+  - stage: deploy 
+    #condition: eq(variables['Build.SourceBranch'], 'refs/heads/sprint3.0_dev')
+    displayName: 'Deployement Stage' 
+    jobs: 
+    - deployment: VMDeply
+      displayName: Deploye to VM 
+      environment: 
+        name: dev01                  # Enter Environment name           
+        resourceName: ops-dev-vm01   # Enter resource name 
+        resourceType: virtualMachine       
+      strategy: 
+        runOnce: 
+          deploy: 
+            steps: 
+              - task: DownloadPipelineArtifact@2
+                displayName: 'Download Python files'
+                inputs:
+                  artifactName: 'drop'
+                  downloadPath: '$(System.ArtifactsDirectory)'
+              - script: |
+                  whoami
+                  cd $(System.ArtifactsDirectory)
+                  pwd 
+                  cd /python/PMFBY 
+                  sudo rm -rf .PMFBY
+                  sudo rm -rf Policy_pdf
+                  sudo rm -rf static
+                  sudo rm -rf templates
+                  sudo rm -rf wkhtmltopdf
+                  cd /home/opsuser01/azagent/_work/5/PMFBY 
+                  sudo mv -f /home/opsuser01/azagent/_work/5/PMFBY/** /python/PMFBY/
+                  sudo mv -f /home/opsuser01/azagent/_work/5/PMFBY/.PMFBY /python/PMFBY
+                  sudo systemctl restart policy.service 
+                  sudo chown -R opsuser01:opsuser01 /python/PMFBY
+                  pwd 
+                  ls -a 

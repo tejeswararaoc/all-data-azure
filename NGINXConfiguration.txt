@@ -15,59 +15,66 @@ sudo apt install nginx
 12.REfer this url:_ https://www.digitalocean.com/community/tutorials/how-to-install-nginx-on-ubuntu-20-04  
 
 SSL CErtification configuration follow the below url:-
-NGINX SSL Configuration Step by Step Details - Ubiq BI 
+###NGINX SSL Configuration Step by Step Details - Ubiq BI  
 
-configured below certificate details in below path:- 
-vi /etc/nginx/nginx.conf (addd below details in this file in server ) 
+cd /etc/nginx/
+here mkdir ssl
+here copy the ssl certificate with path.
 
-user  nginx;
-worker_processes  auto;
+now configure the proxy in below path.
 
-error_log  /var/log/nginx/error.log warn;
-pid        /var/run/nginx.pid;
+cd /etc/nginx/sites-available/
+nano default
 
-events {
-    worker_connections  1024;
+here copy the below data completely and change the doamin based on our requirement.
+
+
+# This is the server block for your Nginx reverse proxy
+server {
+    # The server listens on port 443 for SSL encrypted traffic
+    listen 443 ssl;
+
+    # Replace 'your_domain.com' with your actual domain name
+    server_name qc.kshema.co;
+ 
+    # Paths to the SSL certificate and key files
+    # Replace with the actual paths if different
+    ssl_certificate /etc/nginx/ssl/kshema.crt;
+    ssl_certificate_key /etc/nginx/ssl/kshema.rsa;
+ 
+    # Location block to handle requests
+    location / {
+        # The proxy_pass directive is set to the Sonar application running on localhost at port 9000
+        proxy_pass http://localhost:9000;
+
+        # The following directives set various headers to be passed to the proxied server
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 }
 
-http {
-    include       /etc/nginx/mime.types;
-    default_type  application/octet-stream;
+server {
+    listen  80 default_server;
+    listen  [::]:80 default_server;
+    server_name localhost;
 
-    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-                      '$status $body_bytes_sent "$http_referer" '
-                      '"$http_user_agent" "$http_x_forwarded_for"';
-
-    access_log  /var/log/nginx/access.log  main;
-
-    sendfile        on;
-    #tcp_nopush     on;
-
-    keepalive_timeout  65;
-
-    #include /etc/nginx/conf.d/*.conf;
-
-    server {
-        listen 80;
-        server_name _ 4.188.184.42;
-
-        location / {
-            # Add your default location directives here
-        }
+    location / {
+        return 301 https://$host$request_uri;
     }
+} 
 
-    server {
-        listen 443 ssl;
-        server_name 4.188.184.42;
 
-        ssl_certificate /etc/nginx/ssl/kshema.crt;
-        ssl_certificate_key /etc/nginx/ssl/kshema.rsa;
 
-        location / {
-            # Add your HTTPS location directives here
-        }
-    }
-}   
+
+
+
+
+
+    
+
+    
 ---------------------
 
 nano /etc/nginx/sites-available/ <--
@@ -88,6 +95,8 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
+
+
 
 we have copy the above code and modify the port details also
 

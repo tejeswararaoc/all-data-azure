@@ -1,0 +1,74 @@
+ # Maven
+# Build your Java project and run tests with Apache Maven.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/java
+
+trigger:
+- endorsement_4.0_dev
+- endorsement_4.0
+pool:
+  vmImage: ubuntu-latest
+stages: 
+  - stage: build
+    jobs:
+      - job: 
+        steps:
+          - task: Maven@3
+            inputs:
+              mavenPomFile: 'pom.xml'
+              goals: 'clean package'
+              publishJUnitResults: true
+              testResultsFiles: '**/surefire-reports/TEST-*.xml'
+              javaHomeOption: 'JDKVersion'
+              jdkVersionOption: '1.17'
+              mavenVersionOption: 'Default'
+              mavenOptions: '-Xmx3072m'
+              mavenAuthenticateFeed: false
+              effectivePomSkip: false
+              sonarQubeRunAnalysis: false
+          - task: CopyFiles@2
+            displayName: 'Copy Files to: $(build.artifactstagingdirectory)'
+            inputs:
+              SourceFolder: '$(system.defaultworkingdirectory)'
+              Contents: |
+               **/target/*.war
+              TargetFolder: '$(build.artifactstagingdirectory)'
+          
+          - task: PublishBuildArtifacts@1    
+            displayName: 'Publish Artifact: drop'
+            inputs:
+              PathtoPublish: '$(build.artifactstagingdirectory)'  
+  - stage: deploy
+    condition: eq(variables['Build.SourceBranch'], 'refs/heads/endorsement_4.0_dev')
+    pool: iagri-buildserver
+    displayName: 'Deployement Stage' 
+    jobs: 
+     - job: 
+       steps:
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download WAR artifacts'
+            inputs:
+              buildType: 'current'
+              artifactName: 'drop'
+              targetPath: '$(System.ArtifactsDirectory)'
+          - task: CopyFilesOverSSH@0
+            inputs:
+              sshEndpoint: 'cropdatavm'
+              sourceFolder: '$(System.ArtifactsDirectory)/target/'
+              contents: '*.war'
+              targetFolder: '/home/build/endorsement/'
+              cleanTargetFolder: true
+              cleanHiddenFilesInTarget: true
+              readyTimeout: '20000'
+              failOnEmptySource: true
+          - task: SSH@0
+            inputs:
+              sshEndpoint: 'cropdatavm'
+              runOptions: 'inline'
+              inline: |
+                set -e
+                sudo mv /home/build/endorsement/*.war /opt/tomcat/webapps/endorsement.war
+                sleep 60
+                sudo chown -R tomcat:tomcat /opt/tomcat
+                sudo systemctl restart tomcat
+              readyTimeout: '20000'

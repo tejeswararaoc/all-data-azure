@@ -1,0 +1,14 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: <your-ingress-name>  # Replace with a descriptive name
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /  # Matches all paths (optional, adjust for specific paths)
+        backend:
+          service:
+            name: <your-service-name>  # Replace with your service name
+            port:
+              number: 9000

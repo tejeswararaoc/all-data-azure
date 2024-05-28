@@ -1,0 +1,55 @@
+trigger:
+- main
+pool:
+  vmImage: 'ubuntu-latest'  # Use the "ubuntu-latest" agent pool
+variables:
+  dockerRegistryServiceConnection: 'docker-svc-vam-cms-dev'
+  imageRepository: 'containerforcmsdev'
+  dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
+  tag: '$(Build.BuildId)'   
+stages:
+- stage: Build
+  displayName: Build and publish stage
+  jobs:
+  - job: Build
+    displayName: Build job
+    steps:   
+    - task: Maven@4
+      inputs:
+        #mavenPomFile: 'CMS_LOGIN_TEST/dummybot-example-saml-master/pom.xml'
+        mavenPomFile: 'spring-boot-3-rest-api-example-master/pom.xml' 
+        #mavenPomFile: 'Springboot_Rest_API/spring-boot-3-rest-api-example-master/pom.xml'
+        mavenOptions: '-Xmx3072m'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '21'
+        jdkArchitectureOption: 'x64'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        goals: 'package'
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    - task: CopyFiles@2
+      inputs:
+        SourceFolder: '$(system.defaultworkingdirectory)'
+        Contents: '**/target/*.jar'
+        TargetFolder: '$(build.artifactstagingdirectory)'
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'  
+    - task: DockerInstaller@0
+      inputs:
+        dockerVersion: '17.09.0-ce'
+
+    - task: Docker@2
+      displayName: Build and publish image to Azure Container Registry
+      inputs:
+        command: buildAndPush
+        containerRegistry: $(dockerRegistryServiceConnection)
+        repository: $(imageRepository)
+        dockerfile: $(dockerfilePath)
+        tags: |
+          $(tag)

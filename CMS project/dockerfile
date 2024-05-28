@@ -1,0 +1,9 @@
+FROM openjdk:21-jdk-slim
+RUN mkdir -p /spring-boot-3-rest-api-example/
+WORKDIR /spring-boot-3-rest-api-example
+COPY . .
+EXPOSE 8080
+RUN groupadd -r appusergroup && useradd -r -g appusergroup appuser
+RUN chown -R appuser:appusergroup /spring-boot-3-rest-api-example
+USER appuser
+CMD ["java", "-jar", "/spring-boot-3-rest-api-example/target/spring-boot-3-rest-api-example-0.0.1-SNAPSHOT.jar"]

@@ -1,0 +1,47 @@
+trigger:
+- main
+ 
+pool:
+  vmImage: 'windows-latest'
+stages:
+- stage: build
+  jobs:
+  - job:
+    steps:
+    - task: Npm@1
+      displayName: npm install
+      inputs:
+       workingDir: kshema
+       verbose: false
+    - task: Npm@1
+      displayName: npm run build
+      inputs:
+        command: custom
+        workingDir: kshema
+        verbose: false
+        customCommand: run build
+    #- task: CopyFiles@2
+     # displayName: 'Copy Files to: $(build.artifactstagingdirectory)'
+      #inputs:
+       # SourceFolder: kshema/public/src
+        #Contents: '**/*'
+        #TargetFolder: $(build.artifactstagingdirectory)
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+        replaceExistingArchive: true
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifact: drop'
+    - task: AzureRmWebAppDeployment@4 
+      displayName: 'Deploy to App Service'
+      inputs:
+        ConnectionType: 'AzureRM'
+        azureSubscription: 'vamcmsdevappserviceconnection'
+        appType: 'webApp'
+        WebAppName: 'vam-cms-dev05app'
+        packageForLinux: '$(Build.ArtifactStagingDirectory)/**/*.zip'
+        #deploymentMethod: 'auto'
+        StartupCommand: 'react-scripts start'
