@@ -1,0 +1,52 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: endorsmentingress
+spec:
+  ingressClassName: haproxy
+  rules:
+  -  http:
+      paths:
+      - path: /endorsement
+        pathType: Prefix
+        backend:
+          service:
+            name: svc-endorsement-dev01
+            port:
+              number: 80
+      - path: /zoho
+        pathType: Prefix
+        backend:
+          service:
+            name: svc-zohodesk-dev01
+            port:
+              number: 80
+      - path: /azurefileservice
+        pathType: Prefix
+        backend:
+          service:
+            name: svc-azurefileservice
+            port:
+              number: 80
+
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: endorsmentingress
+# spec:
+#   ingressClassName: haproxy
+#   tls:
+#   - secretName: example-cert
+#     hosts:
+#     - "kshema.co"
+#   rules:
+#   - host: "kshema.co"
+#     http:
+#       paths:
+#       - path: /endorsement
+#         pathType: Prefix
+#         backend:
+#           service:
+#             name: endorsment
+#             port:
+#               number: 80

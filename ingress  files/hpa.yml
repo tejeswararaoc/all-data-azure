@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: endorsment
+spec:
+  minReadySeconds: 20
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test01
+  strategy:
+    rollingUpdate:
+      maxSurge: 25
+      maxUnavailable: 25
+    type: RollingUpdate
+  template:
+    metadata:
+      name: tepmlatetest01
+      labels:
+        app: test01
+    spec:
+      containers:
+        - image: kshemapoc.azurecr.io/iagri-opt-ptest:3100
+          name: test01
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "400Mi"
+            limits:
+              cpu: "1000m"
+              memory: "700Mi"
+          livenessProbe:
+            httpGet:
+              path: /endorsement/actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      imagePullSecrets:
+        - name: mykshema-poc2
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: endorsment-hpa
+spec:
+  maxReplicas: 12
+  minReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          averageUtilization: 70
+          type: Utilization
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: endorsment

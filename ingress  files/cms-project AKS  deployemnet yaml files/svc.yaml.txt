@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: spring-boot-3-rest-api-example-master
+  name: spring-boot-3-rest-api-example-master
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  type: ClusterIP
+  selector:
+    app: spring-boot-3-rest-api-example-master
+  type: LoadBalancer
